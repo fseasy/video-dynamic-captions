@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "video-dynamic-captions"
+version = "0.1.0"
+description = "Generating dynamic captions(subtitles) for video, based on auto-generated subtitles or hand-refined normal pop-on subtitles."
+authors = ["fseasy <xuwei@fseasy.top>"]
+license = "Unlicense license"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pysubs2 = "^1.6.1"
+whisperx = {git = "https://github.com/m-bain/whisperx.git", rev = "52fbe5c26f0960f80fa096f7a7f0e4a55eb7bb12"}
+
+
+[[tool.poetry.source]]
+name = "mirrors"
+url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/"
+priority = "default"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
