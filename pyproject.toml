@@ -9,7 +9,8 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.8"
 pysubs2 = "^1.6.1"
-whisperx = {git = "https://github.com/m-bain/whisperx.git", rev = "52fbe5c26f0960f80fa096f7a7f0e4a55eb7bb12"}
+gputil = "^1.4.0"
+whisperx = {git = "https://github.com/m-bain/whisperX.git", rev = "d97cdb7bcf302fb3e1651321a5935f90594e994c"}
 
 
 [[tool.poetry.source]]
@@ -20,3 +21,8 @@ priority = "default"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+target-version = ['py38']
+include = '\.pyi?$'
