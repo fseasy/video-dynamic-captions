@@ -15,4 +15,4 @@ def caption(
     output_type: CaptionOutputType = CaptionOutputType.SOFT_EMBED_VIDEO,
     exe_config: Optional[CaptionExeConfig] = None
 ):
-    
+    ...

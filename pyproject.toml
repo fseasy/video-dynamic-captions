@@ -10,7 +10,7 @@ readme = "README.md"
 python = "^3.8"
 pysubs2 = "^1.6.1"
 gputil = "^1.4.0"
-whisperx = {git = "https://github.com/m-bain/whisperX.git", rev = "d97cdb7bcf302fb3e1651321a5935f90594e994c"}
+whisperx = {git = "https://github.com/m-bain/whisperX.git", rev = "e9c507ce5dea0f93318746411c03fed0926b70be"}
 
 
 [[tool.poetry.source]]
