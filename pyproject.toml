@@ -21,6 +21,7 @@ priority = "default"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.3"
+pytest-cov = "^4.1.0"
 
 [build-system]
 requires = ["poetry-core"]
