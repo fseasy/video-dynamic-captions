@@ -24,7 +24,7 @@ def gen_from_subtitle(
         return align2get_word_time(
             audio=audio_path,
             audio_lang_code=audio_lang_code,
-            script_word_time_units=script_units,
+            script_time_units=script_units,
             exe_config=exe_config,
         )
     except Exception as e:

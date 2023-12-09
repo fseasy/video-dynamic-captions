@@ -26,7 +26,7 @@ def gen_from_asr(
         raise ASRTranscribeError(e) from e
     try:
         return align2get_word_time(
-            audio, audio_lang_code, script_word_time_units=transcribe_result["segments"], exe_config=exe_config
+            audio, audio_lang_code, script_time_units=transcribe_result["segments"], exe_config=exe_config
         )
     except Exception as e:
         raise ASRAlignWordTimeError(e) from e

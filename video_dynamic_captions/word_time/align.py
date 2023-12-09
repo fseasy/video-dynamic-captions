@@ -188,8 +188,9 @@ def _fill_missing_word_time_by_linear_approximate_(script_time: ScriptTimeUnit):
             if prev_word_time["end"] is not None:
                 rend_sec = prev_word_time["end"]
             else:
-                assert isinstance(word_times[rend]["start"], float)
-                rend_sec = word_times[rend]["start"]
+                _ws = word_times[rend]["start"]
+                assert _ws is not None
+                rend_sec = _ws
         range_sec = rend_sec - rstart_sec
         range_char_num = first_word_prev_char_num
         for idx in range(rstart, rend):
