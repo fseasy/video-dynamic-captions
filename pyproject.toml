@@ -31,3 +31,11 @@ build-backend = "poetry.core.masonry.api"
 line-length = 120
 target-version = ['py38']
 include = '\.pyi?$'
+
+[[tool.mypy.overrides]]
+module = [
+    "whisperx.*",
+    "pysubs2",
+    "GPUtil"
+]
+ignore_missing_imports = true

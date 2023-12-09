@@ -2,7 +2,7 @@
 import gc
 import copy
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Literal
 
 import numpy as np
 import whisperx
@@ -23,6 +23,7 @@ def align2get_word_time(
     """no Exception will be catch. uppper should process it"""
     if isinstance(audio, (str, Path)):
         audio = whisperx.load_audio(str(audio))
+    assert isinstance(audio, np.ndarray)
     device, compute_type = exe_config.get_valid_device_compute_type()
     if not audio_lang_code:
         logger.info("No audio-language code given, auto-detect by whipser")
@@ -127,7 +128,7 @@ def _postprocess_script_word_time_units(
 
     def _monitonic(result: List[ScriptWordTimeUnit]):
         new_result = []
-        prev_end = 0
+        prev_end = 0.
         for script_word_time in result:
             if script_word_time["start"] < prev_end:
                 logger.warning(
@@ -146,9 +147,8 @@ def _postprocess_script_word_time_units(
 
 
 def _get_linear_approximate_timecode(
-    script_word_time_unit: ScriptWordTimeUnit, word_idx: int, time_code_name: str
+    script_word_time_unit: ScriptWordTimeUnit, word_idx: int, time_code_name: Literal["start", "end"]
 ) -> float:
-    assert time_code_name in set(["start", "end"])
     word_times = script_word_time_unit["word_times"]
     valid_start_idx = word_idx - 1
     while valid_start_idx >= 0:

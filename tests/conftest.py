@@ -15,22 +15,22 @@ def test_data_dir():
 
 
 @pytest.fixture(scope="session")
-def sample_video_path(test_data_dir):
+def sample_video_path(test_data_dir: Path):
     return test_data_dir / "sample.mp4"
 
 
 @pytest.fixture(scope="session")
-def sample_audio_path(test_data_dir):
+def sample_audio_path(test_data_dir: Path):
     return test_data_dir / "sample.mp3"
 
 
 @pytest.fixture(scope="session", autouse=True)
-def sample_srt_path(test_data_dir):
+def sample_srt_path(test_data_dir: Path):
     return test_data_dir / "sample.srt"
 
 
 @pytest.fixture(scope="session", autouse=True)
-def target_scripts():
+def target_scripts() -> List[ScriptWordTimeUnit]:
     script_wts: List[ScriptWordTimeUnit] = [
         {
             "text": "Together, we will make America strong again.",
