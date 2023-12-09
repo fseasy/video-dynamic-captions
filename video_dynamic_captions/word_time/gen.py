@@ -8,7 +8,7 @@ import pysubs2
 
 from ..conf import CaptionExeConfig
 from ..exceptions import ParamError
-from .types import VideoWordTimeResult
+from .types import VideoTimeResult
 from .gen_from_subtitle import gen_from_subtitle
 from .gen_from_asr import gen_from_asr
 
@@ -26,13 +26,13 @@ class WordTimeGen(object):
         self._subtitle_path = subtitle_path
         self._exe_config = exe_config if exe_config is not None else CaptionExeConfig()
 
-    def __call__(self) -> VideoWordTimeResult:
+    def __call__(self) -> VideoTimeResult:
         """
         Exceptions
         =====
-        SubtitleParseError
-        ASRAlignWordTimeError
-        ASRTranscribeError
+            SubtitleParseError
+            ASRAlignWordTimeError
+            ASRTranscribeError
         """
         if self._subtitle_path:
             return gen_from_subtitle(

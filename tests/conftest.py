@@ -5,7 +5,7 @@ from typing import List
 
 import pytest
 
-from video_dynamic_captions.word_time.types import ScriptWordTimeUnit
+from video_dynamic_captions.word_time.types import ScriptTimeUnit
 
 
 @pytest.fixture(scope="session")
@@ -30,8 +30,8 @@ def sample_srt_path(test_data_dir: Path):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def target_scripts() -> List[ScriptWordTimeUnit]:
-    script_wts: List[ScriptWordTimeUnit] = [
+def target_scripts() -> List[ScriptTimeUnit]:
+    script_wts: List[ScriptTimeUnit] = [
         {
             "text": "Together, we will make America strong again.",
             "start": 0.506,

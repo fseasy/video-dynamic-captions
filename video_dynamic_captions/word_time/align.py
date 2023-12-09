@@ -11,15 +11,15 @@ from whisperx.audio import SAMPLE_RATE
 import torch
 
 from ..conf import CaptionExeConfig, logger
-from .types import VideoWordTimeResult, ScriptWordTimeUnit, WordTimeUnit
+from .types import VideoTimeResult, ScriptTimeUnit, WordTimeUnit
 
 
 def align2get_word_time(
     audio: Union[str, Path, np.ndarray],
     audio_lang_code: Optional[str],
-    script_word_time_units: Union[List[ScriptWordTimeUnit], List[SingleSegment]],
+    script_time_units: Union[List[ScriptTimeUnit], List[SingleSegment]],
     exe_config: CaptionExeConfig,
-) -> VideoWordTimeResult:
+) -> VideoTimeResult:
     """no Exception will be catch. uppper should process it"""
     if isinstance(audio, (str, Path)):
         audio = whisperx.load_audio(str(audio))
@@ -41,32 +41,30 @@ def align2get_word_time(
     align_model_name = _EXTRA_CODE2MODEL_NAME.get(audio_lang_code, None)
 
     align_model, align_meta = whisperx.load_align_model(audio_lang_code, device=device, model_name=align_model_name)
-    # script_word_time_units' type is compatibility to WhisperX's type
-    align_result = whisperx.align(script_word_time_units, align_model, align_meta, audio=audio, device=device)
-    filled_script_word_time_units = _make_script_word_time_units_from_whipserx(align_result)
+    # script_time_units' type is compatibility to WhisperX's type
+    align_result = whisperx.align(script_time_units, align_model, align_meta, audio=audio, device=device)
+    filled_script_time_units = _make_script_time_units_from_whipserx(align_result)
     audio_duration_sec = len(audio) / SAMPLE_RATE
-    filled_script_word_time_units = _postprocess_script_word_time_units(
-        filled_script_word_time_units, audio_duration_sec
-    )
-    final_result: VideoWordTimeResult = {
-        "script_word_times": filled_script_word_time_units,
-        "audio_language_code": audio_lang_code
+    filled_script_time_units = _postprocess_script_time_units(filled_script_time_units, audio_duration_sec)
+    final_result: VideoTimeResult = {
+        "script_word_times": filled_script_time_units,
+        "audio_language_code": audio_lang_code,
     }
     return final_result
 
 
-def _make_script_word_time_units_from_whipserx(
+def _make_script_time_units_from_whipserx(
     whisperx_aligned_result: AlignedTranscriptionResult,
-) -> List[ScriptWordTimeUnit]:
+) -> List[ScriptTimeUnit]:
     # make result initially
-    result: List[ScriptWordTimeUnit] = []
+    result: List[ScriptTimeUnit] = []
     for single_segment in whisperx_aligned_result["segments"]:
         whisper_words = single_segment["words"]
         word_times: List[WordTimeUnit] = []
         for w in whisper_words:
             wt: WordTimeUnit = {"text": w["word"], "start": w.get("start"), "end": w.get("end")}
             word_times.append(wt)
-        script_unit: ScriptWordTimeUnit = {
+        script_unit: ScriptTimeUnit = {
             "text": single_segment["text"],
             "start": single_segment["start"],
             "end": single_segment["end"],
@@ -76,19 +74,15 @@ def _make_script_word_time_units_from_whipserx(
     return result
 
 
-def _postprocess_script_word_time_units(
-    script_word_time_units: List[ScriptWordTimeUnit], audio_duration_sec: float
-) -> List[ScriptWordTimeUnit]:
-    def _fill_word_start_end_(result: List[ScriptWordTimeUnit]):
+def _postprocess_script_time_units(
+    script_time_units: List[ScriptTimeUnit], audio_duration_sec: float
+) -> List[ScriptTimeUnit]:
+    def _fill_word_start_end_(result: List[ScriptTimeUnit]):
         """in scripts level, always has start/end time. but"""
-        for wts in result:
-            for idx, w in enumerate(wts["word_times"]):
-                if w["start"] is None:
-                    w["start"] = _get_linear_approximate_timecode(wts, idx, "start")
-                if w["end"] is None:
-                    w["end"] = _get_linear_approximate_timecode(wts, idx, "end")
+        for script_time in result:
+            _fill_missing_word_time_by_linear_approximate_(script_time)
 
-    def _limit_end_time_(result: List[ScriptWordTimeUnit]):
+    def _limit_end_time_(result: List[ScriptTimeUnit]):
         processing_idx = len(result) - 1
         while processing_idx >= 0:
             script_wt = result[processing_idx]
@@ -110,6 +104,7 @@ def _postprocess_script_word_time_units(
                 while widx >= 0:
                     w = word_times[widx]
                     widx -= 1
+                    assert isinstance(w["start"], float) and isinstance(w["end"], float)
                     if w["start"] >= audio_duration_sec:
                         drop_words.append(w)
                         word_times.pop()
@@ -126,9 +121,9 @@ def _postprocess_script_word_time_units(
             # finish all
             break
 
-    def _monitonic(result: List[ScriptWordTimeUnit]):
+    def _monitonic(result: List[ScriptTimeUnit]):
         new_result = []
-        prev_end = 0.
+        prev_end = 0.0
         for script_word_time in result:
             if script_word_time["start"] < prev_end:
                 logger.warning(
@@ -139,40 +134,79 @@ def _postprocess_script_word_time_units(
             new_result.append(script_word_time)
         return new_result
 
-    result = copy.deepcopy(script_word_time_units)
+    result = copy.deepcopy(script_time_units)
     _fill_word_start_end_(result)
     _limit_end_time_(result)
     result = _monitonic(result)
     return result
 
 
-def _get_linear_approximate_timecode(
-    script_word_time_unit: ScriptWordTimeUnit, word_idx: int, time_code_name: Literal["start", "end"]
-) -> float:
-    word_times = script_word_time_unit["word_times"]
-    valid_start_idx = word_idx - 1
-    while valid_start_idx >= 0:
-        wt = word_times[valid_start_idx]
-        if wt[time_code_name] is not None:
+def _fill_missing_word_time_by_linear_approximate_(script_time: ScriptTimeUnit):
+    """we firstly fill the missing `start` fields, then fill the `end` fields.
+    Exception:
+        No exception will be catched.
+    """
+    word_times = script_time["word_times"]
+    if not word_times:
+        return
+    global_start_missing_range_start = 0
+    while global_start_missing_range_start < len(word_times):
+        # find the next `start`-field-missing range
+        rstart = global_start_missing_range_start
+        while rstart < len(word_times) and word_times[rstart]["start"] is not None:
+            rstart += 1
+        if rstart >= len(word_times):
+            # no any missing, just exit
             break
-        valid_start_idx -= 1
-    range_start_time = (
-        word_times[valid_start_idx][time_code_name] if valid_start_idx >= 0 else script_word_time_unit["start"]
-    )
+        rend = rstart + 1 # range-end for start-field-missing range is not included
+        while rend < len(word_times) and word_times[rend]["start"] is None:
+            rend += 1
+        # Now get the range of missing. we firstly fill the start, then the end
+        first_word_prev_char_num = 0
+        if rstart == 0:
+            # condition1: the first word-time no start, only can use the script-level info
+            rstart_sec = script_time["start"]
+        else:
+            # prev word-time has `start`. Now test whether previous has end
+            prev_word_time = word_times[rstart - 1]
+            if prev_word_time["end"] is not None:
+                # has End. start-sec use this value
+                rstart_sec = prev_word_time["end"]
+            else:
+                # has to use the prev-start. and chars including previous word-time
+                assert isinstance(prev_word_time["start"], float)
+                rstart_sec = prev_word_time["start"]
+                first_word_prev_char_num = len(prev_word_time["text"])
+        if rend >= len(word_times):
+            # reach the end. test the last word-time whether has `end`
+            if word_times[-1]["end"] is not None:
+                rend_sec = word_times[-1]["end"]
+            else:
+                rend_sec = script_time["end"]
+        else:
+            prev_word_time = word_times[rend - 1]
+            if prev_word_time["end"] is not None:
+                rend_sec = prev_word_time["end"]
+            else:
+                assert isinstance(word_times[rend]["start"], float)
+                rend_sec = word_times[rend]["start"]
+        range_sec = rend_sec - rstart_sec
+        range_char_num = first_word_prev_char_num
+        for idx in range(rstart, rend):
+            range_char_num += len(word_times[idx]["text"])
+        sec_per_char = range_sec / (range_char_num + 1e-6)
+        prev_start_sec = rstart_sec
+        prev_char_num = first_word_prev_char_num
+        for idx in range(rstart, rend):
+            approx_start_sec = prev_start_sec + prev_char_num * sec_per_char
+            word_times[idx]["start"] = approx_start_sec
+            prev_start_sec = approx_start_sec
+            prev_char_num = len(word_times[idx]["text"])
+        global_start_missing_range_start = rend
+    for idx in range(0, len(word_times) - 1):
+        if word_times[idx]["end"] is None:
+            word_times[idx]["end"] = word_times[idx + 1]["start"]
+    if word_times[-1]["end"] is None:
+        word_times[-1]["end"] = script_time["end"]
 
-    valid_end_idx = word_idx + 1
-    while valid_end_idx < len(word_times):
-        wt = word_times[valid_end_idx]
-        if wt[time_code_name] is not None:
-            break
-        valid_end_idx += 1
-    range_end_time = (
-        word_times[valid_end_idx][time_code_name] if valid_end_idx < len(word_times) else script_word_time_unit["end"]
-    )
-    range_interval = range_end_time - range_start_time
-    assert range_interval >= 0, (
-        "Linear Approximate get invalid interval: "
-        f"{range_start_time}=>{range_end_time}(interval={range_interval} < 0)"
-    )
-    percent = (word_idx - valid_start_idx) / (valid_end_idx - valid_start_idx)
-    return range_start_time + percent * range_interval
+
