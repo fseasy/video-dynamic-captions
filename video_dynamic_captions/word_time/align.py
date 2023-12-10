@@ -109,7 +109,7 @@ def _postprocess_script_time_units(
                         drop_words.append(w)
                         word_times.pop()
                         continue
-                    if w["end"] >= audio_duration_sec:
+                    if w["end"] > audio_duration_sec:
                         w["end"] = audio_duration_sec
                     break
                 logger.warning(
